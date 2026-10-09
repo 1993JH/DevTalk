@@ -1,0 +1,22 @@
+{
+    "name": "cst8265/forum",
+    "description": "CST8265 vulnerable forum application (Lab 4 / Lab 5)",
+    "type": "project",
+    "license": "proprietary",
+    "config": {
+        "process-timeout": 0
+    },
+    "require": {
+        "php": ">=8.1",
+        "ext-pdo": "*",
+        "ext-pdo_sqlite": "*"
+    },
+    "scripts": {
+        "start": "php -S localhost:8000 -t public",
+        "reset-db": "php database/build_db.php"
+    },
+    "scripts-descriptions": {
+        "start": "Start the forum on http://localhost:8000",
+        "reset-db": "Rebuild and re-seed the SQLite database"
+    }
+}
