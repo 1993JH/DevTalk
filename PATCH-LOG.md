@@ -261,3 +261,51 @@ using a per-session random token compared with `hash_equals()`.
 - `POST` with the **valid token** read from the page → **302, topic deleted**.
 - **Normal use:** the valid-token delete (and the token-bearing create/edit/
   comment/bio forms) work exactly as before.
+
+---
+
+## Patch #5: Validate server-side image fetch (A01 — SSRF)
+
+**Lab 4 finding:** #5 — A01 Broken Access Control — SSRF (unvalidated
+server-side fetch): `public/fetch_image.php:4-15`.
+
+### Exploit (re-confirmed before patch)
+`fetch_image.php` passed any `url` straight to `file_get_contents()` with
+`follow_location` on, so the server fetched whatever it was told:
+
+```
+fetch_image.php?url=http://127.0.0.1:8123/login.php   -> internal app
+fetch_image.php?url=http://169.254.169.254/latest/... -> cloud metadata
+fetch_image.php?url=file:///etc/passwd                -> local file read
+fetch_image.php?url=gopher://127.0.0.1:6379/...       -> protocol smuggling
+```
+
+### Root problem
+No validation of the destination: any scheme, host, or address was accepted,
+turning the preview feature into a request proxy into the server's own network.
+
+### Fix
+`fetch_image.php` now, before fetching:
+- requires the scheme to be `http`/`https` (blocks `file://`, `gopher://`, …);
+- resolves the host (`gethostbynamel()` + `dns_get_record()`) and rejects the
+  request if **any** resolved IP is private or reserved via
+  `FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE` (covers loopback,
+  RFC1918, link-local, and `169.254.169.254`);
+- disables redirects (`follow_location=0`, `max_redirects=0`) so a public URL
+  cannot bounce to an internal one;
+- returns the body only if its sniffed MIME type is `image/*`.
+
+### Re-test (after patch)
+- `url=http://127.0.0.1:8123/...` → **403**; `http://localhost:...` → **403**.
+- `url=http://169.254.169.254/latest/meta-data/...` → **403** "Refusing to
+  fetch a private or reserved address." See
+  `docs/screenshots/patch5-ssrf-blocked.png`.
+- `url=http://10.0.0.1/` → **403**; `file:///etc/passwd` and `gopher://…` →
+  **400** "Only http(s) image URLs are allowed."
+- **Normal use:** a real public image URL (`gravatar.com/...png`) → **200**,
+  `Content-Type: image/png` — preview still works.
+
+### Notes / out of scope
+A determined attacker could still attempt DNS rebinding (resolve public on the
+check, internal on the fetch — a TOCTOU window). Fully closing that needs
+pinning the validated IP for the connection; it is noted but not bundled here.
