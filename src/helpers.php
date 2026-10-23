@@ -56,6 +56,39 @@ function require_owner(int $ownerId): void
     exit;
 }
 
+/**
+ * Per-session CSRF token. Generated lazily and reused for the session.
+ */
+function csrf_token(): string
+{
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+function csrf_field(): string
+{
+    return '<input type="hidden" name="csrf_token" value="'
+        . htmlspecialchars(csrf_token()) . '">';
+}
+
+/**
+ * Reject the request unless it carries a valid CSRF token. Call at the top of
+ * every state-changing POST handler.
+ */
+function require_csrf(): void
+{
+    $sent = $_POST['csrf_token'] ?? '';
+    if (!is_string($sent) || $sent === '' || !hash_equals(csrf_token(), $sent)) {
+        http_response_code(403);
+        render_header('Forbidden');
+        echo '<div class="alert alert-danger">Invalid or missing security token. Please try again.</div>';
+        render_footer();
+        exit;
+    }
+}
+
 function render_header(string $title = APP_NAME): void
 {
     $user = current_user();

@@ -4,6 +4,7 @@ require_login();
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_csrf();
     $title = trim($_POST['title'] ?? '');
     $body  = $_POST['body'] ?? '';
     $image = trim($_POST['image_url'] ?? '');
@@ -27,6 +28,7 @@ render_header('New Topic');
 <?php if ($error): ?><div class="alert alert-danger"><?= htmlspecialchars($error) ?></div><?php endif; ?>
 
 <form method="post" class="card card-body shadow-sm">
+    <?= csrf_field() ?>
     <div class="mb-3">
         <label class="form-label">Title</label>
         <input name="title" class="form-control" required>

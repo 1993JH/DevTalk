@@ -217,3 +217,47 @@ profile.
 - `profile.php` POST `user_id=1&bio=HACKED` → admin bio **unchanged**; only
   bob's own bio changed. See `docs/screenshots/patch3-idor-blocked.png`.
 - **Normal use:** `bob` editing his own topic 3 → **200** (still works).
+
+---
+
+## Patch #4: Anti-CSRF tokens on all state changes (A01 — CSRF)
+
+**Lab 4 finding:** #4 — A01 Broken Access Control — CSRF (no anti-forgery
+token; destructive actions over GET): `delete_topic.php` and
+`delete_comment.php` triggered by plain GET links (`topic.php:57`,
+`topic.php:78`), plus the POST handlers in `create_topic.php`,
+`edit_topic.php`, `add_comment.php`, and `profile.php`.
+
+### Exploit (re-confirmed before patch)
+Deletes were GET requests with no token, so a victim merely loading:
+
+```html
+<img src="http://localhost:8000/delete_topic.php?id=3">
+```
+
+deleted their topic. None of the POST handlers checked a token either, so any
+cross-site form could drive them.
+
+### Root problem
+State-changing requests carried nothing an attacker's page could not forge:
+destructive actions used GET, and no request proved it originated from the
+app's own forms.
+
+### Fix
+Added `csrf_token()`, `csrf_field()`, and `require_csrf()` (`src/helpers.php`),
+using a per-session random token compared with `hash_equals()`.
+
+- `delete_topic.php` / `delete_comment.php` now **require POST**, call
+  `require_csrf()`, and read ids from POST. The topic/comment "Delete" controls
+  in `topic.php` became POST forms carrying the token.
+- `create_topic.php`, `edit_topic.php`, `add_comment.php`, and `profile.php`
+  call `require_csrf()` at the top of their POST branch, and every form embeds
+  `csrf_field()`.
+
+### Re-test (after patch) — as `bob`, target his own topic 3
+- `GET delete_topic.php?id=3` → **302 redirect, no delete** (topic still there).
+- `POST delete_topic.php id=3` with **no token** → **403** "Invalid or missing
+  security token." See `docs/screenshots/patch4-csrf-blocked.png`.
+- `POST` with the **valid token** read from the page → **302, topic deleted**.
+- **Normal use:** the valid-token delete (and the token-bearing create/edit/
+  comment/bio forms) work exactly as before.

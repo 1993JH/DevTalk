@@ -3,6 +3,7 @@ require_once __DIR__ . '/../src/helpers.php';
 require_login();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_csrf();
     $topicId = $_POST['topic_id'] ?? '';
     $body    = trim($_POST['body'] ?? '');
 

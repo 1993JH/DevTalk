@@ -2,8 +2,14 @@
 require_once __DIR__ . '/../src/helpers.php';
 require_login();
 
-$id      = $_GET['id'] ?? '';
-$topicId = $_GET['topic_id'] ?? '';
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header('Location: index.php');
+    exit;
+}
+require_csrf();
+
+$id      = $_POST['id'] ?? '';
+$topicId = $_POST['topic_id'] ?? '';
 
 $owner = db()->prepare('SELECT user_id FROM comments WHERE id = ?');
 $owner->execute([$id]);

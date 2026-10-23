@@ -18,6 +18,7 @@ if (!$topic) {
 require_owner((int) $topic['user_id']);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_csrf();
     $title = trim($_POST['title'] ?? '');
     $body  = $_POST['body'] ?? '';
     $image = trim($_POST['image_url'] ?? '');
@@ -35,6 +36,7 @@ render_header('Edit Topic');
 ?>
 <h1 class="h4 mb-3">Edit topic</h1>
 <form method="post" class="card card-body shadow-sm">
+    <?= csrf_field() ?>
     <input type="hidden" name="id" value="<?= (int) $topic['id'] ?>">
     <div class="mb-3">
         <label class="form-label">Title</label>
