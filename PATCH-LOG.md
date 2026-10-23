@@ -62,3 +62,54 @@ removing the information leak.
 Passwords remain stored in plaintext (seeded that way by the instructor,
 Lab 4 finding on A02); moving to `password_hash()`/`password_verify()` is a
 separate patch and is intentionally not bundled here.
+
+---
+
+## Patch #1 (cont.): Parameterize search query (A05 Injection — SQLi)
+
+**Lab 4 finding:** #1 — A05 Injection — SQL (additional injection point in the
+same class as the login SQLi; `public/search.php:9-10`)
+
+### Exploit (re-confirmed before patch)
+`search.php` concatenated the raw `q` GET param into a `LIKE` clause:
+
+```php
+$sql = "SELECT id, title, body FROM topics
+        WHERE title LIKE '%$q%' OR body LIKE '%$q%' ORDER BY created_at DESC";
+$results = db()->query($sql)->fetchAll();
+```
+
+Searching `q=%' OR '1'='1` closed the `LIKE` string and injected an always-true
+condition, returning **all 5 topics** instead of matches (normal `q=php` → 1).
+A lone `'` broke the query and the handler echoed the full SQL back to the page.
+
+### Root problem
+User input was concatenated into the SQL string instead of being bound as a
+parameter, so input could alter the query's logic. The error handler also
+leaked the raw SQL.
+
+### Fix
+Prepared statement with the `%…%` wildcards wrapped around the bound value, so
+`q` is always data, never SQL:
+
+```php
+$like = '%' . $q . '%';
+$stmt = db()->prepare(
+    'SELECT id, title, body FROM topics
+     WHERE title LIKE ? OR body LIKE ? ORDER BY created_at DESC'
+);
+$stmt->execute([$like, $like]);
+$results = $stmt->fetchAll();
+```
+
+The `catch` block now returns a generic message instead of echoing the query.
+
+### Re-test (after patch)
+- `q=%' OR '1'='1` → **0 results**, "No matches found" (payload treated as a
+  literal string). See `docs/screenshots/patch1-search-sqli-blocked.png`.
+- `q='` → generic "Search failed." with no SQL leaked.
+- **Normal use:** `q=php` → matching topic(s) still returned. Search still works.
+
+### Notes / out of scope
+The `Results for: <?= $q ?>` line reflects `q` unescaped (reflected XSS); that
+is a separate Lab 4 finding and is not bundled into this SQLi patch.
