@@ -39,7 +39,7 @@ render_header('Edit Topic');
         <input name="title" class="form-control" value="<?= htmlspecialchars($topic['title']) ?>" required>
     </div>
     <div class="mb-3">
-        <label class="form-label">Body <span class="text-body-secondary small">(HTML allowed)</span></label>
+        <label class="form-label">Body <span class="text-body-secondary small">(plain text)</span></label>
         <textarea name="body" class="form-control" rows="8" required><?= htmlspecialchars($topic['body']) ?></textarea>
     </div>
     <div class="mb-3">

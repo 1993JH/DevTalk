@@ -112,4 +112,59 @@ The `catch` block now returns a generic message instead of echoing the query.
 
 ### Notes / out of scope
 The `Results for: <?= $q ?>` line reflects `q` unescaped (reflected XSS); that
-is a separate Lab 4 finding and is not bundled into this SQLi patch.
+is a separate Lab 4 finding and is fixed in Patch #2.
+
+---
+
+## Patch #2: Escape user-generated output (A05 Injection — XSS)
+
+**Lab 4 finding:** #2 — A05 Injection — Cross-Site Scripting
+(`public/topic.php:50` topic body, `public/topic.php:81` comment body,
+`public/search.php:30` reflected query; stored case noted at
+`database/schema.sql:23`).
+
+### Exploit (re-confirmed before patch)
+Topic/comment bodies were echoed raw, and the search page reflected `q` raw:
+
+```php
+<div class="topic-body"><?= $topic['body'] ?></div>   // topic.php:50
+<div class="mt-1"><?= $c['body'] ?></div>             // topic.php:81
+<p ...>Results for: <?= $q ?></p>                      // search.php:30
+```
+
+A topic or comment whose body was `<script>alert(1)</script>` executed for
+every visitor (stored XSS); `search.php?q=<script>alert(3)</script>` executed
+reflected. Confirmed on a seeded topic containing `<script>alert(1)</script>`.
+
+### Root problem
+User-controlled data was written into HTML without output encoding, so markup
+in the data was interpreted as part of the page. The schema even documents the
+"HTML allowed" body as the intended stored-XSS sink; that "feature" *is* the
+vulnerability.
+
+### Fix
+Encode every user-controlled value on output. Topic and comment bodies now go
+through `nl2br(htmlspecialchars(...))` (line breaks preserved, markup inert),
+and the search page wraps `q` in `htmlspecialchars(...)`:
+
+```php
+<div class="topic-body"><?= nl2br(htmlspecialchars($topic['body'])) ?></div>
+<div class="mt-1"><?= nl2br(htmlspecialchars($c['body'])) ?></div>
+<p ...>Results for: <?= htmlspecialchars($q) ?></p>
+```
+
+The "(HTML allowed)" hints on the create/edit forms were corrected to
+"(plain text)". Images are still supported through the `image_url` preview.
+
+### Re-test (after patch)
+- Topic `#6` body `<script>alert(1)</script>` and its comment
+  `<script>alert(2)</script>` → rendered as **literal text, 0 raw `<script>`
+  tags, 2 escaped**; no script executes. See
+  `docs/screenshots/patch2-xss-blocked.png`.
+- `search.php?q=<script>alert(3)</script>` → reflected as escaped text.
+- **Normal use:** ordinary topic/comment text displays normally with line
+  breaks preserved.
+
+### Notes / out of scope
+Existing rows stored before the patch are still rendered safely because
+encoding happens on output, not input.

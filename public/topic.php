@@ -47,7 +47,7 @@ render_header($topic['title']);
             <p><img class="img-fluid rounded" src="fetch_image.php?url=<?= urlencode($topic['image_url']) ?>" alt="topic image"></p>
         <?php endif; ?>
 
-        <div class="topic-body"><?= $topic['body'] ?></div>
+        <div class="topic-body"><?= nl2br(htmlspecialchars($topic['body'])) ?></div>
 
         <?php if ($user): ?>
             <div class="mt-3 d-flex gap-2">
@@ -78,7 +78,7 @@ render_header($topic['title']);
                             href="delete_comment.php?id=<?= (int) $c['id'] ?>&topic_id=<?= (int) $topic['id'] ?>">delete</a>
                     <?php endif; ?>
                 </div>
-                <div class="mt-1"><?= $c['body'] ?></div>
+                <div class="mt-1"><?= nl2br(htmlspecialchars($c['body'])) ?></div>
             </div>
         </div>
     <?php endforeach; ?>

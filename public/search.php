@@ -33,7 +33,7 @@ render_header('Search');
 </form>
 
 <?php if ($q !== ''): ?>
-    <p class="text-body-secondary">Results for: <?= $q ?></p>
+    <p class="text-body-secondary">Results for: <?= htmlspecialchars($q) ?></p>
 <?php endif; ?>
 
 <?php if ($sqlError): ?>

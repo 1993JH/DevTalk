@@ -32,7 +32,7 @@ render_header('New Topic');
         <input name="title" class="form-control" required>
     </div>
     <div class="mb-3">
-        <label class="form-label">Body <span class="text-body-secondary small">(HTML allowed)</span></label>
+        <label class="form-label">Body <span class="text-body-secondary small">(plain text)</span></label>
         <textarea name="body" class="form-control" rows="8" required></textarea>
     </div>
     <div class="mb-3">
