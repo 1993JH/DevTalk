@@ -168,3 +168,52 @@ The "(HTML allowed)" hints on the create/edit forms were corrected to
 ### Notes / out of scope
 Existing rows stored before the patch are still rendered safely because
 encoding happens on output, not input.
+
+---
+
+## Patch #3: Enforce ownership on state-changing actions (A01 — IDOR)
+
+**Lab 4 finding:** #3 — A01 Broken Access Control — IDOR (missing ownership
+check): `public/delete_topic.php:5-8`, `public/edit_topic.php:5-27`,
+`public/delete_comment.php:5-9`, and the bio update in `public/profile.php:6-12`.
+
+### Exploit (re-confirmed before patch)
+These endpoints checked only that *a* user was logged in, never that the user
+*owned* the object. Logged in as `bob`, every one of these succeeded against
+objects owned by others:
+
+```
+GET  delete_topic.php?id=1          -> deletes admin's topic
+GET  edit_topic.php?id=1 (+POST)    -> edits admin's topic
+GET  delete_comment.php?id=1        -> deletes alice's comment
+POST profile.php  user_id=1&bio=... -> overwrites admin's bio (IDOR via POST field)
+```
+
+### Root problem
+Authentication without **object-level authorization**: the target id came
+straight from the request and was trusted. For the bio, the row updated was
+taken from a POST `user_id`, so any value could be supplied.
+
+### Fix
+Added `current_user_id()`, `is_admin()`, and `require_owner($ownerId)` helpers
+(`src/helpers.php`). Each endpoint now loads the row, and calls
+`require_owner()` (owner or admin, else HTTP 403) before mutating:
+
+```php
+$topic = /* SELECT user_id FROM topics WHERE id = ? */;
+require_owner((int) $topic['user_id']);   // delete_topic / edit_topic
+$comment = /* SELECT user_id FROM comments WHERE id = ? */;
+require_owner((int) $comment['user_id']); // delete_comment
+```
+
+`profile.php` now ignores any posted `user_id` and always updates
+`current_user_id()`'s own bio, and the bio form is shown only on one's own
+profile.
+
+### Re-test (after patch)  — all as `bob`
+- `delete_topic.php?id=1` → **403**, topic 1 still present.
+- `edit_topic.php?id=1` → **403**.
+- `delete_comment.php?id=1` → **403**, comment 1 still present.
+- `profile.php` POST `user_id=1&bio=HACKED` → admin bio **unchanged**; only
+  bob's own bio changed. See `docs/screenshots/patch3-idor-blocked.png`.
+- **Normal use:** `bob` editing his own topic 3 → **200** (still works).

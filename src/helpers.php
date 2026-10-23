@@ -29,6 +29,33 @@ function require_login(): void
     }
 }
 
+function current_user_id(): ?int
+{
+    return isset($_SESSION['user_id']) ? (int) $_SESSION['user_id'] : null;
+}
+
+function is_admin(): bool
+{
+    $u = current_user();
+    return $u !== null && !empty($u['is_admin']);
+}
+
+/**
+ * Allow the action only for the resource owner (or an admin); otherwise send a
+ * 403 and stop. Used to enforce object-level authorization (IDOR defense).
+ */
+function require_owner(int $ownerId): void
+{
+    if (current_user_id() === $ownerId || is_admin()) {
+        return;
+    }
+    http_response_code(403);
+    render_header('Forbidden');
+    echo '<div class="alert alert-danger">You are not allowed to do that.</div>';
+    render_footer();
+    exit;
+}
+
 function render_header(string $title = APP_NAME): void
 {
     $user = current_user();

@@ -15,6 +15,8 @@ if (!$topic) {
     exit;
 }
 
+require_owner((int) $topic['user_id']);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title = trim($_POST['title'] ?? '');
     $body  = $_POST['body'] ?? '';

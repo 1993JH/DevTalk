@@ -4,8 +4,10 @@ require_once __DIR__ . '/../src/helpers.php';
 $id = $_GET['id'] ?? ($_POST['user_id'] ?? '');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && is_logged_in()) {
-    $bio    = $_POST['bio'] ?? '';
-    $userId = $_POST['user_id'] ?? '';
+    $bio = $_POST['bio'] ?? '';
+    // Users may only edit their own bio: ignore any posted user_id and always
+    // target the logged-in account (object-level authorization / IDOR defense).
+    $userId = current_user_id();
     $upd = db()->prepare('UPDATE users SET bio = ? WHERE id = ?');
     $upd->execute([$bio, $userId]);
     header('Location: profile.php?id=' . (int) $userId);
@@ -44,7 +46,7 @@ render_header($profile['username'] . "'s profile");
             </div>
         </div>
 
-        <?php if ($me): ?>
+        <?php if ($me && (int) $me['id'] === (int) $profile['id']): ?>
             <form method="post" class="card card-body shadow-sm">
                 <input type="hidden" name="user_id" value="<?= (int) $profile['id'] ?>">
                 <label class="form-label">Update bio</label>
