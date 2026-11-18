@@ -2,6 +2,24 @@
 require_once __DIR__ . '/db.php';
 
 if (session_status() === PHP_SESSION_NONE) {
+    header("Content-Security-Policy: default-src 'self'; "
+        . "script-src 'self' https://cdn.jsdelivr.net; "
+        . "style-src 'self' https://cdn.jsdelivr.net; "
+        . "img-src 'self' data:; "
+        . "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+    header('X-Frame-Options: DENY');
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+    header('Strict-Transport-Security: max-age=31536000; includeSubDomains'); // only honoured over HTTPS
+    header_remove('X-Powered-By');
+
+    session_set_cookie_params([
+        'httponly' => true,
+        'samesite' => 'Lax',
+        // 'secure' => true,   // enable once served over HTTPS
+    ]);
+
     session_start();
 }
 
@@ -138,6 +156,7 @@ function render_header(string $title = APP_NAME): void
             <?= APP_NAME ?> — CST8265 lab application. For educational use only.
         </footer>
         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="assets/confirm.js" defer></script>
     </body>
 
     </html>

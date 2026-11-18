@@ -13,7 +13,7 @@
     },
     "scripts": {
         "start": "php -S localhost:8000 -t public",
-        "reset-db": "php database/build_db.php"
+        "reset-db": ["php database/build_db.php", "php database/api_seed.php"]
     },
     "scripts-descriptions": {
         "start": "Start the forum on http://localhost:8000",

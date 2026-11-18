@@ -224,3 +224,6 @@ public/uploads/*
 *ANSWER*KEY*
 *VULNERAB*
 *vulnerab*solution*
+
+# Lab 8: JWT signing key and other runtime files
+storage/
